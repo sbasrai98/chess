@@ -14,7 +14,8 @@ def is_empty(position, B):
 def is_opponent(position, B, my_color):
     if my_color == 'white': opponent_color = 'black'
     if my_color == 'black': opponent_color = 'white'
-    if not is_empty((position[0], position[1]), B) and \
+    if exists((position[0], position[1])) and \
+       not is_empty((position[0], position[1]), B) and \
        B.board[position[0]][position[1]].color == opponent_color:
         return True
     else:
@@ -35,26 +36,129 @@ class Piece:
         B.board[destination[0]][destination[1]] = self
         self.file = destination[0]
         self.rank = destination[1]
-            
 
 class Pawn(Piece):
     def get_moves(self, B):  # pass Board object   
         possible_moves = []
-        if self.rank == 2 and is_empty((self.file, self.rank+1), B) and \
-           is_empty((self.file, self.rank+2), B):
-            possible_moves.append((self.file, self.rank+2))
-        if is_empty((self.file, self.rank+1), B):
-            possible_moves.append((self.file, self.rank+1))
-        for pos in [(chr(ord(self.file)-1), self.rank+1), 
-                    (chr(ord(self.file)+1), self.rank+1)]:
-            if exists(pos) and is_opponent(pos, B, self.color):
+        if self.color == 'white':
+            start_rank = 2
+            move_fwd = 1
+        if self.color == 'black':
+            start_rank = 7
+            move_fwd = -1
+        if self.rank == start_rank and \
+           is_empty((self.file, self.rank+move_fwd), B) and \
+           is_empty((self.file, self.rank+(move_fwd*2)), B):
+            possible_moves.append((self.file, self.rank+(move_fwd*2)))
+        if is_empty((self.file, self.rank+move_fwd), B):
+            possible_moves.append((self.file, self.rank+move_fwd))
+        for pos in [(chr(ord(self.file)-1), self.rank+move_fwd), 
+                    (chr(ord(self.file)+1), self.rank+move_fwd)]:
+            if is_opponent(pos, B, self.color):
                 possible_moves.append(pos)
         return possible_moves
 
 class Rook(Piece):
     def get_moves(self, B):   
         possible_moves = []
-        
+        fwd_rng = zip([self.file]*8, range(self.rank+1, 9))
+        bck_rng = zip([self.file]*8, range(self.rank-1, 0, -1))
+        left_rng = zip(map(chr, range(ord(self.file)-1, 96, -1)), [self.rank]*8)
+        right_rng = zip(map(chr, range(ord(self.file)+1, 105)), [self.rank]*8) 
+        for rng in [fwd_rng, bck_rng, left_rng, right_rng]:
+            for file, rank in rng: 
+                if is_empty((file, rank), B):
+                    possible_moves.append((file, rank))
+                elif is_opponent((file, rank), B, self.color):
+                    possible_moves.append((file, rank))
+                    break
+                else:
+                    break  
+        return possible_moves
+
+class Knight(Piece):
+    def get_moves(self, B):
+        possible_moves = []
+        # simply list all positions going clockwise from top right
+        files = map(chr, [ord(self.file)+1, ord(self.file)+2, 
+                          ord(self.file)+2, ord(self.file)+1, 
+                          ord(self.file)-1, ord(self.file)-2,
+                          ord(self.file)-2, ord(self.file)-1])
+        ranks = [self.rank+2, self.rank+1, self.rank-1, self.rank-2,
+                 self.rank-2, self.rank-1, self.rank+1, self.rank+2]
+        for file, rank in zip(files, ranks):
+            if is_empty((file, rank), B) or \
+               is_opponent((file, rank), B, self.color):
+               possible_moves.append((file, rank))
+        return possible_moves
+
+class Bishop(Piece):
+    def get_moves(self, B):
+        possible_moves = []
+        top_right = zip(map(chr, range(ord(self.file)+1, 105)), 
+                        range(self.rank+1, 9))
+        btm_right = zip(map(chr, range(ord(self.file)+1, 105)), 
+                        range(self.rank-1, 0, -1))
+        btm_left = zip(map(chr, range(ord(self.file)-1, 96, -1)), 
+                       range(self.rank-1, 0, -1))
+        top_left = zip(map(chr, range(ord(self.file)-1, 96, -1)), 
+                       range(self.rank+1, 9))
+        for rng in [top_right, btm_right, btm_left, top_left]:
+            for file, rank in rng:
+                if is_empty((file, rank), B):
+                    possible_moves.append((file, rank))
+                elif is_opponent((file, rank), B, self.color):
+                    possible_moves.append((file, rank))
+                    break
+                else:
+                    break
+        return possible_moves
+
+class Queen(Piece):
+    def get_moves(self, B):
+        possible_moves = []
+        fwd_rng = zip([self.file]*8, range(self.rank+1, 9))
+        bck_rng = zip([self.file]*8, range(self.rank-1, 0, -1))
+        left_rng = zip(map(chr, range(ord(self.file)-1, 96, -1)), [self.rank]*8)
+        right_rng = zip(map(chr, range(ord(self.file)+1, 105)), [self.rank]*8)
+        top_right = zip(map(chr, range(ord(self.file)+1, 105)), 
+                        range(self.rank+1, 9))
+        btm_right = zip(map(chr, range(ord(self.file)+1, 105)), 
+                        range(self.rank-1, 0, -1))
+        btm_left = zip(map(chr, range(ord(self.file)-1, 96, -1)), 
+                       range(self.rank-1, 0, -1))
+        top_left = zip(map(chr, range(ord(self.file)-1, 96, -1)), 
+                       range(self.rank+1, 9))
+        for rng in [fwd_rng, bck_rng, left_rng, right_rng,
+                    top_right, btm_right, btm_left, top_left]:
+            for file, rank in rng:
+                if is_empty((file, rank), B):
+                    possible_moves.append((file, rank))
+                elif is_opponent((file, rank), B, self.color):
+                    possible_moves.append((file, rank))
+                    break
+                else:
+                    break
+        return possible_moves
+
+class King(Piece):
+    def get_moves(self, B):
+        possible_moves = []
+        # starting from top right, going clockwise
+        files = map(chr, [ord(self.file)+1, ord(self.file)+1, 
+                          ord(self.file)+1, ord(self.file), 
+                          ord(self.file)-1, ord(self.file)-1,
+                          ord(self.file)-1, ord(self.file)])
+        ranks = [self.rank+1, self.rank, self.rank-1, self.rank-1,
+                 self.rank-1, self.rank, self.rank+1, self.rank+1]
+        for file, rank in zip(files, ranks):
+            if is_empty((file, rank), B) or \
+               is_opponent((file, rank), B, self.color):
+               # and not in_check((file, rank), B, self.color)
+               possible_moves.append((file, rank))
+        return possible_moves
+
+
 
 class Board:
     files = ['a','b','c','d','e','f','g','h']  # column names
@@ -70,12 +174,29 @@ class Board:
         
         self.captured = {'white':[], 'black':[]}
 
-        white_rank_1 = list('RNBQKBNR')
-        for file, piece in zip(Board.files, white_rank_1):
-            self.board[file][1] = Piece(piece, 'white', (file, 1)) 
-            self.board[file][2] = Pawn('P', 'white', (file, 2))
+        self.board['a'][1] = Rook('R', 'white', ('a', 1))
+        self.board['h'][1] = Rook('R', 'white', ('h', 1))
+        self.board['b'][1] = Knight('N', 'white', ('b', 1))
+        self.board['g'][1] = Knight('N', 'white', ('g', 1))
+        self.board['c'][1] = Bishop('B', 'white', ('c', 1))
+        self.board['f'][1] = Bishop('B', 'white', ('f', 1))
+        self.board['d'][1] = Queen('Q', 'white', ('d', 1))
+        self.board['e'][1] = King('K', 'white', ('e', 1))
 
-    def show(self):  # color arg will determine from who's perspective
+        self.board['a'][8] = Rook('r', 'black', ('a', 8))
+        self.board['h'][8] = Rook('r', 'black', ('h', 8))
+        self.board['b'][8] = Knight('n', 'black', ('b', 8))
+        self.board['g'][8] = Knight('n', 'black', ('g', 8))
+        self.board['c'][8] = Bishop('b', 'black', ('c', 8))
+        self.board['f'][8] = Bishop('b', 'black', ('f', 8))
+        self.board['d'][8] = Queen('q', 'black', ('d', 8))
+        self.board['e'][8] = King('k', 'black', ('e', 8))
+
+        for file in Board.files:
+            self.board[file][2] = Pawn('P', 'white', (file, 2))
+            self.board[file][7] = Pawn('p', 'black', (file, 7))
+
+    def show(self):  # color arg could determine from who's perspective
         for rank in Board.ranks:
             print(str(rank), end=' ')
             for file in Board.files:
@@ -85,25 +206,34 @@ class Board:
                     print('['+self.board[file][rank].kind+']', end=' ')
             print('\n', end='')
         print('   a   b   c   d   e   f   g   h  ')
+
+    def play(self):
+        
+        while True:
+            self.show()
+
+            piece = input('Which piece will you move? (ex. b2)\n')
+            moves = self.board[piece[0]][int(piece[1])].get_moves(self)
+            print('Where to? (enter a number)')
+            for idx, move in enumerate(moves):
+                print(idx, move)
+            dest = input('')
+            self.board[piece[0]][int(piece[1])].make_move(
+                                moves[int(dest)], self)
+
         
 b = Board()
-b.show()
+b.play()
 
-print(b.board['a'][2].kind)
-print(b.board['a'][2].get_moves(b))
-
-# put a piece on a4
-#b.board['a'][4] = Piece('Q','black',('a',4))
-#print(b.board['a'][2].get_moves(b.board))
+# print(b.board['a'][2].kind)
+# print(b.board['a'][2].get_moves(b))
 
 
-b.board['b'][3] = Piece('Q','black',('b',3))
-b.board['d'][3] = Piece('Q','black',('d',3))
-b.show()
-print(b.board['c'][2].get_moves(b))
+# b.board['e'][7] = Knight('N','white',('e',7))
+# b.board['d'][6] = King('K','black',('d',6))
+# b.show()
+# print(b.board['d'][6].get_moves(b))
 
-b.board['c'][2].make_move(('b',3), b)
-b.show()
-print(b.board['b'][3].get_moves(b))
-print(b.captured)
+
+
 
