@@ -327,7 +327,7 @@ moves {p} to {loc}.')
             print(f'{opp_color} wins.')
             return True # game over
         print(f'{color[0].upper() + color[1:]}\'s turn to move...')
-        time.sleep(2)
+        #time.sleep(1)
         file, rank = random.choice(my_pieces)
         move_select = random.choice(
             self.board[file][rank].get_moves(self))
@@ -338,7 +338,8 @@ moves {p} to {loc}.')
         loc = ''.join(map(str, move_select))
         print(f'{color[0].upper() + color[1:]} \
 moves {p} to {loc}.')
-        return False # game is not over
+        #return False # game is not over                    # for play loop below
+        return (file, rank, move_select[0], move_select[1]) # for gui 
         
     def play(self, white='human', black='cpu'):        
         while True:
@@ -356,20 +357,21 @@ moves {p} to {loc}.')
                     game_over = self.human_turn('black')
             
             if game_over: break
-    
-b = Board()
-b.play(white='human')
-#print( type(b.board['a'][2]).__name__)
 
-# b.board['c'][3] = Bishop('b', 'black', ('c', 3))
-# b.board['d'][6] = King('K','black',('d',6))
-# b.show()
-# print(b.board['d'][6].get_moves(b))
+if __name__ == '__main__':
+    b = Board()
+    b.play(white='human')
+    #print( type(b.board['a'][2]).__name__)
 
-# print(b.board['d'][2].get_moves(b))
-# print(b.board['d'][2].causes_check(('d',3), b))
+    # b.board['c'][3] = Bishop('b', 'black', ('c', 3))
+    # b.board['d'][6] = King('K','black',('d',6))
+    # b.show()
+    # print(b.board['d'][6].get_moves(b))
 
-# b.show()
+    # print(b.board['d'][2].get_moves(b))
+    # print(b.board['d'][2].causes_check(('d',3), b))
+
+    # b.show()
 
 
 
