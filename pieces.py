@@ -30,13 +30,12 @@ class Pawn(Piece):
             prev_end = self.board.history[-1]['end']
             prev_piece = self.board.history[-1]['piece']
             if prev_start[1] == op_pawn_rank and \
-                prev_end[1] == ep_rank and type(prev_piece) == Pawn:
-                possible_moves.append((prev_piece.file, 'p'))
-
+                prev_end[1] == ep_rank and prev_piece == Pawn and \
+                prev_end[0] in [chr(ord(self.file)+x) for x in [1, -1]]:
+                possible_moves.append((prev_start[0], 'p'))
         if check: # remove any possible moves that put the king in check
             possible_moves = [x for x in possible_moves if \
                 not(self.board.causes_check((self.file,self.rank), x))]
-        
         return possible_moves
 
 class Rook(Piece):
@@ -55,11 +54,9 @@ class Rook(Piece):
                     break
                 else:
                     break 
-        
         if check: # remove any possible moves that put the king in check
             possible_moves = [x for x in possible_moves if \
                 not(self.board.causes_check((self.file,self.rank), x))]
-        
         return possible_moves
 
 class Knight(Piece):
@@ -76,13 +73,10 @@ class Knight(Piece):
             if self.board.is_empty((file, rank)) or \
                self.board.is_opponent((file, rank), self.color):
                possible_moves.append((file, rank))
-        
         if check: # remove any possible moves that put the king in check
             possible_moves = [x for x in possible_moves if \
                 not(self.board.causes_check((self.file,self.rank), x))]
-        
         return possible_moves
-
 
 class Bishop(Piece):
     def get_moves(self, check=True):
@@ -104,11 +98,9 @@ class Bishop(Piece):
                     break
                 else:
                     break
-
         if check: # remove any possible moves that put the king in check
             possible_moves = [x for x in possible_moves if \
                 not(self.board.causes_check((self.file,self.rank), x))]
-        
         return possible_moves
 
 class Queen(Piece):
@@ -136,11 +128,9 @@ class Queen(Piece):
                     break
                 else:
                     break
-
         if check: # remove any possible moves that put the king in check
             possible_moves = [x for x in possible_moves if \
                 not(self.board.causes_check((self.file,self.rank), x))]
-        
         return possible_moves
 
 class King(Piece):
@@ -157,7 +147,6 @@ class King(Piece):
             if self.board.is_empty((file, rank)) or \
                self.board.is_opponent((file, rank), self.color):
                possible_moves.append((file, rank))
-
         # castling
         first_rank = 1 if self.color == 'white' else 8
         q_rook_still = type(self.board.at(('a', first_rank))) == Rook and \
@@ -174,9 +163,7 @@ class King(Piece):
             possible_moves.append(('q', 0))
         if not(self.has_moved) and k_rook_still and k_side_empty:
             possible_moves.append(('k', 0))
-
         if check: # remove any possible moves that put the king in check
             possible_moves = [x for x in possible_moves if \
                 not(self.board.causes_check((self.file,self.rank), x))]
-
         return possible_moves

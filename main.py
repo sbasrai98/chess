@@ -16,10 +16,10 @@ def play():
         #print(b.at(start).get_moves())
 
         if end in b.at(start).get_moves():
-            b.move_piece(start, end)
+            b.make_move(start, end)
             b.show()
-            print(f'move was {start} to {end}\n')
+            print(f'move was {start} to {end}')
         else:
-            print(f'{start} to {end} is not a valid move\n')
+            print(f'{start} to {end} is not a valid move')
 
 play()
