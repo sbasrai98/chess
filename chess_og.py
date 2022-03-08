@@ -25,6 +25,18 @@ def is_opponent(position, B, my_color):
     else:
         return False
 
+def under_attack(position, B, my_color):
+    if my_color == 'white': opponent_color = 'black'
+    if my_color == 'black': opponent_color = 'white'
+    opp_pieces = B.get_pieces(opponent_color)
+    opp_moves = []
+    for file, rank in opp_pieces:
+        opp_moves.extend(B.board[file][rank].get_moves(B, check=False))
+    if position in opp_moves: 
+        result = True
+    else:
+        result = False
+
 class Piece:
     def __init__(self, kind, color, position):
         self.kind = kind
@@ -32,31 +44,59 @@ class Piece:
         self.file = position[0] 
         self.rank = position[1]
         
-    def make_move(self, destination, B):
-        B.board[self.file][self.rank] = ' '
-        if not is_empty((destination[0], destination[1]), B):
-            cap_color = B.board[destination[0]][destination[1]].color 
-            B.captured[cap_color].append(B.board[destination[0]][destination[1]])
-        B.board[destination[0]][destination[1]] = self
-        self.file = destination[0]
-        self.rank = destination[1]
-        if self.kind == 'K' and self.color == 'white':
-            B.king['white'] = destination
-        if self.kind == 'k' and self.color == 'black':
-            B.king['black'] = destination
+    def make_move(self, destination, B, player='cpu'):
+        ### CASTLING ###
+        if self.color == 'white': rook_rank = 1
+        if self.color == 'black': rook_rank = 8
+        if destination[0] == 'q':
+            B.board['e'][rook_rank].make_move(('c', rook_rank), B)
+            B.board['a'][rook_rank].make_move(('d', rook_rank), B)
+        elif destination[0] == 'k':
+            
+            B.board['e'][rook_rank].make_move(('g', rook_rank), B)
+            B.board['h'][rook_rank].make_move(('f', rook_rank), B)
+            
+            #print(self.kind, self.color, self.file, self.rank)
+        else:
+            # normal move
+            B.board[self.file][self.rank] = ' '
+            if not is_empty((destination[0], destination[1]), B):
+                cap_color = B.board[destination[0]][destination[1]].color 
+                B.captured[cap_color].append(B.board[destination[0]][destination[1]])
+            B.board[destination[0]][destination[1]] = self
+            self.file = destination[0]
+            self.rank = destination[1]
+
+            if self.kind == 'K' and self.color == 'white':
+                B.king['white'] = destination
+            if self.kind == 'k' and self.color == 'black':
+                B.king['black'] = destination
+
+            # pawn promotions. if player is set to human, ask for input()
+            options = zip([Queen, Bishop, Rook, Knight], ['Q','B','R','N'])
+            new_piece = random.choice(
+                [piece(k, 'white', destination) for piece, k in options])
+            if self.kind == 'P' and self.color == 'white' and \
+                self.rank == 8:
+                B.board[destination[0]][destination[1]] = new_piece
+            if self.kind == 'p' and self.color == 'black' and \
+                self.rank == 1:
+                new_piece.kind, new_piece.color = new_piece.kind.lower(), 'black'
+                B.board[destination[0]][destination[1]] = new_piece
+
 
     # will this move cause the player to be in check?
     # execute the move. find out answer. reverse the move and return answer
     def causes_check(self, destination, B):
+        if self.color == 'white': rook_rank = 1
+        if self.color == 'black': rook_rank = 8
         dest_file, dest_rank = destination
-        og_dest_piece = B.board[dest_file][dest_rank]
+        if dest_file not in ('q', 'k'):
+            og_dest_piece = B.board[dest_file][dest_rank]
         og_king = copy.deepcopy(B.king)
         og_captured = copy.deepcopy(B.captured)
         og_file = self.file
         og_rank = self.rank
-
-        # test_board = copy.deepcopy(self) 
-        # will still need to reverse self.rank/file changes
 
         self.make_move(destination, B)
 
@@ -69,6 +109,12 @@ class Piece:
         for file, rank in opp_pieces:
             opp_moves.extend(B.board[file][rank].get_moves(B, check=False))
         if B.king[self.color] in opp_moves: 
+            result = True    
+        elif dest_file == 'q' and \
+            (('d', rook_rank) in opp_moves or ('e', rook_rank) in opp_moves):
+            result = True
+        elif dest_file == 'k' and \
+            (('f', rook_rank) in opp_moves or ('e', rook_rank) in opp_moves): 
             result = True
         else:
             result = False
@@ -77,14 +123,22 @@ class Piece:
         B.board[og_file][og_rank] = self
         self.file = og_file
         self.rank = og_rank
-        B.board[dest_file][dest_rank] = og_dest_piece
+        if dest_file == 'q':
+            B.board['a'][rook_rank] = B.board['d'][rook_rank]
+            B.board['a'][rook_rank].file = 'a' # the rank wouldn't have changed.
+            B.board['d'][rook_rank] = ' '
+            B.board['c'][rook_rank] = ' '
+        elif dest_file == 'k':
+            B.board['h'][rook_rank] = B.board['f'][rook_rank]
+            B.board['h'][rook_rank].file = 'h' # the rank wouldn't have changed.
+            B.board['f'][rook_rank] = ' '
+            B.board['g'][rook_rank] = ' '
+        else:
+            B.board[dest_file][dest_rank] = og_dest_piece
         B.king = og_king
         B.captured = og_captured
 
         return result
-
-
-
 
 class Pawn(Piece):
     def get_moves(self, B, check=True):  # pass Board object   
@@ -220,6 +274,31 @@ class King(Piece):
                is_opponent((file, rank), B, self.color):
                # and not in_check((file, rank), B, self.color)
                possible_moves.append((file, rank))
+
+        # castling
+        king_moved = list(filter(
+            lambda x: x['piece'].kind == self.kind, B.history))
+        if self.color == 'white': rook_rank = 1
+        if self.color == 'black': rook_rank = 8
+        q_rook_moved = len(list(filter(
+            lambda x: type(x['piece']) == Rook and \
+                      x['piece'].color == self.color and \
+                      x['piece'].file == 'a' and \
+                      x['piece'].rank == rook_rank, B.history)))
+        k_rook_moved = len(list(filter(
+            lambda x: type(x['piece']) == Rook and \
+                      x['piece'].color == self.color and \
+                      x['piece'].file == 'h' and \
+                      x['piece'].rank == rook_rank, B.history)))
+        q_side_full = len(list(filter(lambda x: not(is_empty(x, B)), 
+                           [(r, rook_rank) for r in ['b','c','d']])))
+        k_side_full = not(is_empty(('f', rook_rank), B) and \
+                          is_empty(('g', rook_rank), B))
+        if not(king_moved) and not(q_rook_moved) and not(q_side_full):
+            possible_moves.append(('q', 0))
+        if not(king_moved) and not(k_rook_moved) and not(k_side_full):
+            possible_moves.append(('k', 0))
+
         if check: # remove any possible moves that put the king in check
             possible_moves = list(filter(
                 lambda x: not(self.causes_check(x, B)), possible_moves))
@@ -236,9 +315,8 @@ class Board:
             for pos in rank:
                 rank[pos] = ' '
             self.board[k] = rank
-        
+        self.history = []
         self.captured = {'white':[], 'black':[]}
-
         first_rank = [Rook, Knight, Bishop, Queen, 
                       King, Bishop, Knight, Rook]
         letters = ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
@@ -289,7 +367,7 @@ class Board:
             all_moves.extend(self.board[file][rank].get_moves(self))
         if all_moves == []:
             print(f'{opp_color} wins.')
-            return True # game over
+            return False # game does not continue.
         piece = input('Which piece will you move?\n')
         while (piece[0], int(piece[1])) not in my_pieces:
             print(f'{piece} is not one of your pieces.')
@@ -305,13 +383,18 @@ class Board:
                 return self.human_turn(color)
             else:
                 try:
+                    turn_record = {'board': copy.deepcopy(self.board), # before the move is made
+                                'piece': copy.deepcopy(self.board[file][rank]),
+                                'dest': moves[int(dest)]} 
                     p = type(self.board[piece[0]][int(piece[1])]).__name__
                     self.board[piece[0]][int(piece[1])].make_move(
                         moves[int(dest)], self)
                     loc = ''.join(map(str, moves[int(dest)]))
                     print(f'{color[0].upper() + color[1:]} \
 moves {p} to {loc}.')
-                    return False # game is not over
+                    self.history.append(turn_record)
+                    return (piece[0], piece[1], 
+                        moves[int(dest)][0], moves[int(dest)][1]) # game continues
                 except:
                     print('Not a valid option.')
                     dest = input('Where to?\n')
@@ -324,13 +407,18 @@ moves {p} to {loc}.')
             lambda x: self.board[x[0]][x[1]].get_moves(self) != [],
             my_pieces))
         if my_pieces == []:
-            print(f'{opp_color} wins.')
-            return True # game over
-        print(f'{color[0].upper() + color[1:]}\'s turn to move...')
+            #print(f'{opp_color} wins.')
+            return False # game does not continue.
+        #print(f'{color[0].upper() + color[1:]}\'s turn to move...')
         #time.sleep(1)
+
         file, rank = random.choice(my_pieces)
         move_select = random.choice(
             self.board[file][rank].get_moves(self))
+
+        turn_record = {'board': copy.deepcopy(self.board), # before the move is made
+                       'piece': copy.deepcopy(self.board[file][rank]),
+                       'dest': move_select} 
 
         p = type(self.board[file][rank]).__name__
         self.board[file][rank].make_move(move_select, self)
@@ -338,35 +426,61 @@ moves {p} to {loc}.')
         loc = ''.join(map(str, move_select))
         print(f'{color[0].upper() + color[1:]} \
 moves {p} to {loc}.')
-        #return False # game is not over                    # for play loop below
-        return (file, rank, move_select[0], move_select[1]) # for gui 
+
+        self.history.append(turn_record)
+        return (file, rank, move_select[0], move_select[1]) # for gui. game continues.
         
     def play(self, white='human', black='cpu'):        
         while True:
             self.show()
             if white == 'human':
-                game_over = self.human_turn('white')
+                game_continues = self.human_turn('white')
             else:
-                game_over = self.cpu_turn('white')
+                game_continues = self.cpu_turn('white')
             
             self.show() 
-            if not game_over:
+            if game_continues:
                 if black == 'cpu':
-                    game_over = self.cpu_turn('black')
+                    game_continues = self.cpu_turn('black')
                 else:
-                    game_over = self.human_turn('black')
+                    game_continues = self.human_turn('black')
             
-            if game_over: break
+            if not game_continues: break
 
 if __name__ == '__main__':
     b = Board()
-    b.play(white='human')
+    #b.play(white='human')
+
+
+
     #print( type(b.board['a'][2]).__name__)
 
-    # b.board['c'][3] = Bishop('b', 'black', ('c', 3))
-    # b.board['d'][6] = King('K','black',('d',6))
-    # b.show()
-    # print(b.board['d'][6].get_moves(b))
+    b.board['g'][1] = ' ' #Bishop('b', 'black', ('c', 3))
+    b.board['f'][1] = ' ' #King('K','black',('d',6))
+    b.board['f'][2] = ' '
+
+    b.board['b'][8] = ' '
+    b.board['c'][8] = ' '
+    b.board['d'][8] = ' '
+    b.board['d'][7] = ' '
+    b.play(black='human')
+    
+    #b.board['d'][1] = ' '
+    #b.board['d'][6] = Rook('r', 'black', ('d',6))
+    #b.show()
+    #b.board['e'][1].make_move(('k', 0), b)
+    #b.board['f'][3] = Knight('n', 'black', ('f',3))
+    #b.show()
+    
+    
+    
+    #print(b.board['e'][1].get_moves(b))
+
+    #b.board['e'][1].make_move(('k',0), b)
+    #b.show()
+
+    
+
 
     # print(b.board['d'][2].get_moves(b))
     # print(b.board['d'][2].causes_check(('d',3), b))
