@@ -1,10 +1,10 @@
 class Piece:
-    def __init__(self, kind, color, position, board):
+    def __init__(self, kind, color, position, board, has_moved=0):
         self.kind = kind
         self.color = color
         self.file = position[0] 
         self.rank = position[1]
-        self.has_moved = 0
+        self.has_moved = has_moved
         self.board = board
 
 class Pawn(Piece):
@@ -33,10 +33,24 @@ class Pawn(Piece):
                 prev_end[1] == ep_rank and prev_piece == Pawn and \
                 prev_end[0] in [chr(ord(self.file)+x) for x in [1, -1]]:
                 possible_moves.append((prev_start[0], 'p'))
-        if check: # remove any possible moves that put the king in check
-            possible_moves = [x for x in possible_moves if \
-                not(self.board.causes_check((self.file,self.rank), x))]
-        return possible_moves
+        ## REPLACE MOVES THAT LEAD TO LAST RANK WITH PROMOTION OPTIONS
+        l_rank = 8 if self.color == 'white' else 1
+        last_rank = list(filter(lambda x: x[1] == l_rank, possible_moves))
+        for move in last_rank:
+            possible_moves.remove(move)
+            promotion_options = [(move[0], str(l_rank)+x) for x in 'rnbq']
+            possible_moves.extend(promotion_options)
+        new = []
+        og_file, og_rank = self.file, self.rank
+        if check:
+            for m in possible_moves:
+                if not(self.board.causes_check((self.file,self.rank), m)):
+                    new.append(m)
+                self.file, self.rank = og_file, og_rank
+                # ^manually reset to original. since new piece replaces the
+                # one on which this method was called in promotions, 
+                # file/rank won't be updated when the move is reversed
+        return new
 
 class Rook(Piece):
     def get_moves(self, check=True):   
@@ -156,9 +170,9 @@ class King(Piece):
                     self.board.at(('h', first_rank)).color == self.color and \
                     not(self.board.at(('h', first_rank)).has_moved)
         q_side_empty = all([self.board.is_empty((x, first_rank)) 
-                        for x in ['b','c','d']]) 
+                        for x in 'bcd']) 
         k_side_empty = all([self.board.is_empty((x, first_rank)) 
-                        for x in ['f', 'g']])
+                        for x in 'fg'])
         if not(self.has_moved) and q_rook_still and q_side_empty:
             possible_moves.append(('q', 0))
         if not(self.has_moved) and k_rook_still and k_side_empty:
