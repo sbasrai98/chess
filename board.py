@@ -1,5 +1,32 @@
 from pieces import *
 
+def squares_affected(start, end):
+    affected = [start]
+    if end == ('q', 0):
+        affected.extend([(x, start[1]) for x in 'acd'])
+    elif end == ('k', 0):
+        affected.extend([(x, start[1]) for x in 'fgh'])
+    elif end[1] == 'p':
+        end_rank = 6 if start[1] == 5 else 3
+        affected.extend([(end[0], end_rank), (end[0], start[1])])
+    elif type(end[1]) == str:
+        affected.append((end[0], int(end[1][0])))
+    else:
+        affected.append(end)
+    return affected
+
+def square_img(b, pos):
+    if (pos[1] in [1,3,5,7] and pos[0] in ['a','c','e','g']) or \
+       (pos[1] in [2,4,6,8] and pos[0] in ['b','d','f','h']):
+        imgfile = 'dark.png'
+    else:
+        imgfile = 'light.png'
+    if b.at(pos):
+        color = b.at(pos).color
+        piece = type(b.at(pos)).__name__
+        imgfile = '_'.join([color, piece, imgfile])
+    return imgfile
+
 class Board:
     files = ['a','b','c','d','e','f','g','h']  # column names
     ranks = list(range(8,0,-1))                # row names
@@ -26,6 +53,8 @@ class Board:
                 letters[i].lower(), 'black', (Board.files[i], 8), self)
             self.board[Board.files[i]][7] = Pawn(
                 'p', 'black', (Board.files[i], 7), self)
+        
+        self.viewstack = [] # for viewing history in gui
 
     def exists(self, position): 
         if position[0] in Board.files and position[1] in Board.ranks:
@@ -68,6 +97,9 @@ class Board:
         opp_moves = []
         for file, rank in opp_pieces:
             opp_moves.extend(self.at((file, rank)).get_moves(check=False))
+        for i in range(len(opp_moves)): # for promo kills
+            if type(opp_moves[i][1]) == str and len(opp_moves[i][1]) == 2:
+                opp_moves[i] = (opp_moves[i][0], int(opp_moves[i][1][0]))
         if position in opp_moves: 
             return True
         return False
@@ -112,9 +144,13 @@ class Board:
             return piece_captured      
 
     def make_move(self, start, end): 
+        affected = squares_affected(start, end)
+        before = [square_img(self, x) for x in affected] 
         hist_entry = dict(piece=type(self.at(start)), 
             color=self.at(start).color, start=start, end=end, 
-            capture=self.move_piece(start, end, 1))
+            capture=self.move_piece(start, end, 1),
+            affected=affected, before=before)
+        hist_entry['after'] = [square_img(self, x) for x in affected]
         self.history.append(hist_entry)
 
     def reverse_move(self): # reverse the last move made using history
@@ -146,8 +182,10 @@ class Board:
             self.move_piece(prev['end'], prev['start'], -1)
             if prev['capture']:
                 self.set(prev['end'], self.captured[op_color].pop())
+        return prev
         
     def causes_check(self, start, end):
+        #print('will', start, 'to', end, 'cause check?')
         my_color = self.at(start).color
         self.make_move(start, end)
         # castling
@@ -189,3 +227,10 @@ class Board:
         print('   a  b  c  d  e  f  g  h ')
         print('captured:', 
               ''.join(map(lambda x: x.kind, self.captured['black']))+'\n')
+
+# if __name__ == '__main__':
+
+#     b = Board()
+#     b.set(('d',7), Pawn('P', 'white', ('d',7), b))
+#     b.show()
+#     print(b.at(('e',7)).get_moves())

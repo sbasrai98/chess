@@ -50,7 +50,9 @@ class Pawn(Piece):
                 # ^manually reset to original. since new piece replaces the
                 # one on which this method was called in promotions, 
                 # file/rank won't be updated when the move is reversed
-        return new
+            return new
+        else:
+            return possible_moves
 
 class Rook(Piece):
     def get_moves(self, check=True):   
